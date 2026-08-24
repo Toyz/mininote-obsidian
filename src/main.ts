@@ -892,7 +892,7 @@ class MininoteSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Show sync notifications").setDesc("Pop a toast for each background sync (a moved or deleted note syncing to mininote). Off = these happen quietly; the status bar and the mininote sidebar still reflect them. Errors always notify.")
       .addToggle((t) => t.setValue(this.plugin.settings.syncNotices).onChange(async (v) => { this.plugin.settings.syncNotices = v; await this.plugin.saveSettings(); }));
 
-    new Setting(containerEl).setName("Default share options").setHeading();
+    new Setting(containerEl).setName("New share defaults").setHeading();
     containerEl.createEl("p", { text: "What every NEW share starts from. Existing shares keep their own; you can still change any of these per-share when you publish.", cls: "setting-item-description" });
     const save = () => void this.plugin.saveSettings();
     renderShareOptions(containerEl, this.plugin.settings.defaultOptions, save);
