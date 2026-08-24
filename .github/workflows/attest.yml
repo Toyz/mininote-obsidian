@@ -1,0 +1,38 @@
+name: attest-release
+
+# Runs IN the public releases repo (mirrored here from the monorepo). When a release is published,
+# attest its assets' build provenance. Attestations are only available on public repos — which this
+# one is — and GitHub-hosted runners are free for public repos, so no self-hosted runner is needed.
+# This file lives at clients/obsidian/.github/workflows/attest.yml in the monorepo (inert there —
+# only root .github/workflows runs) and is copied to the releases repo root by the release workflow.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # OIDC for provenance
+  attestations: write # persist the attestation (public repo only)
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir dist
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" --dir dist \
+            --pattern main.js --pattern styles.css --pattern manifest.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/main.js
+            dist/styles.css
+            dist/manifest.json
