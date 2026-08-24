@@ -1,4 +1,4 @@
-import { addIcon, App, Plugin, PluginSettingTab, TAbstractFile, TFile, TFolder, type Menu, type MenuItem, type ObsidianProtocolData, type SettingDefinitionItem, type WorkspaceLeaf } from "obsidian";
+import { addIcon, App, Notice, Plugin, PluginSettingTab, TAbstractFile, TFile, TFolder, type Menu, type MenuItem, type ObsidianProtocolData, type SettingDefinitionItem, type WorkspaceLeaf } from "obsidian";
 import { Api, ReauthNeeded, type TokenStore } from "./api";
 import { Mn } from "./mn";
 import { authorizeUrl, challengeFor, exchangeCode, randomUrlToken, type Tokens } from "./oauth";
@@ -209,6 +209,7 @@ export default class MininotePlugin extends Plugin {
           const sub = (item as MenuItemWithSubmenu).setSubmenu();
           // The folder modal offers BOTH Publish (share) and Push (private); this opens it.
           sub.addItem((i) => i.setTitle(shared ? `Update folder share (${count})` : `Share folder (${count})`).setIcon("share").onClick(() => this.shareFolder(file)));
+          sub.addItem((i) => i.setTitle(`Push folder private (${count})`).setIcon("upload").onClick(() => void this.quickPushFolder(file)));
           if (shared) sub.addItem((i) => i.setTitle("Stop sharing folder").setIcon("x").onClick(() => void this.unshareFolder(file)));
         });
       }
@@ -526,6 +527,25 @@ export default class MininotePlugin extends Plugin {
     return (root ? root + "/" : "") + folder.path;
   }
 
+  // quickPushFolder mirrors a folder privately straight from the context menu (no modal) — every note
+  // upserted, no share — with a live progress notice for the (possibly many) notes.
+  private async quickPushFolder(folder: TFolder) {
+    if (!this.settings.tokens) { notify("mininote: run Connect first"); return; }
+    const files = this.markdownFilesUnder(folder);
+    if (files.length === 0) { notify("mininote: no notes in this folder"); return; }
+    const existing = this.settings.shares[folder.path];
+    const note = new Notice(`mininote: pushing 0/${files.length}…`, 0);
+    try {
+      const r = await this.pushFolderPrivate(folder, existing?.pageSettings ?? { ...this.settings.defaultPage }, (done) => note.setMessage(`mininote: pushing ${done}/${files.length}…`));
+      note.hide();
+      notify(`mininote: pushed ${r.ok}/${r.total} (private)`);
+    } catch (e) {
+      note.hide();
+      if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
+      notifyErr("mininote: push failed — " + errMsg(e));
+    }
+  }
+
   private shareFolder(folder: TFolder) {
     if (!this.settings.tokens) { notify("mininote: run Connect first"); return; }
     const files = this.markdownFilesUnder(folder);
@@ -540,7 +560,6 @@ export default class MininotePlugin extends Plugin {
       unshare: () => this.unshareFolder(folder),
       openUrl: (url) => this.openExternal(url),
       publishAll: (opts, page, onProgress) => this.publishFolder(folder, opts, page, onProgress),
-      pushPrivate: (page, onProgress) => this.pushFolderPrivate(folder, page, onProgress),
     }).open();
   }
 
