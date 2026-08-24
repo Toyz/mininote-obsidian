@@ -654,7 +654,7 @@ export default class MininotePlugin extends Plugin {
   // mininoteTitleOf mirrors titleFor via the metadata cache (no file read): frontmatter title, else
   // basename — the title we upsert the page with, and therefore what mininote slugifies for links.
   private mininoteTitleOf(file: TFile): string {
-    const t = this.app.metadataCache.getFileCache(file)?.frontmatter?.title;
+    const t: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.title;
     return (typeof t === "string" && t.trim()) ? t.trim() : file.basename;
   }
 
@@ -811,7 +811,8 @@ export default class MininotePlugin extends Plugin {
   onunload() { for (const t of this.editTimers.values()) window.clearTimeout(t); this.editTimers.clear(); this.clearPending(); clearToasts(); clearHovers(); }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const saved = (await this.loadData()) as Partial<MininoteSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
     // Production builds bake the connection defaults and hide the dev-only Server URL / Client ID
     // fields — so a persisted base/clientId (e.g. localhost, left over from dev-testing in this vault)
     // must NOT override them, or the plugin keeps pointing at the wrong instance with no way to fix it

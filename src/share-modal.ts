@@ -102,8 +102,8 @@ export class ShareModal extends Modal {
     const check = hero.createDiv({ cls: "mn-check" });
     setIcon(check, "check");
     const heroText = hero.createDiv({ cls: "mn-hero-text" });
-    heroText.createEl("div", { cls: "mn-hero-title", text: "Published" });
-    heroText.createEl("div", { cls: "mn-hero-sub mn-muted", text: "Your note is live. Share the link." });
+    heroText.createDiv({ cls: "mn-hero-title", text: "Published" });
+    heroText.createDiv({ cls: "mn-hero-sub mn-muted", text: "Your note is live. Share the link." });
 
     this.linkCard(contentEl, res.url); // prominent link card with inline copy
 
