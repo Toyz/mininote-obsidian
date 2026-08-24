@@ -4,15 +4,9 @@ import { setIcon } from "obsidian";
 // styling of it) wraps our card in stock chrome we can't reliably strip. Rendering our own element
 // into a container we control means zero chrome to fight — the card IS the whole toast.
 
-const GLYPH =
-  `<svg class="mn-toast-glyph" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">` +
-  `<g fill="currentColor" transform="scale(4.1667)">` +
-  `<ellipse cx="9" cy="5.3" rx="1.5" ry="4" transform="rotate(-11 9 5.3)"/>` +
-  `<ellipse cx="13.4" cy="4.9" rx="1.5" ry="4.1" transform="rotate(11 13.4 4.9)"/>` +
-  `<circle cx="11" cy="11.4" r="3.5"/>` +
-  `<ellipse cx="12" cy="18" rx="5" ry="4"/>` +
-  `<circle cx="16.8" cy="18.6" r="1.3"/>` +
-  `</g></svg>`;
+// The Mini glyph is registered as an Obsidian icon in the plugin's onload (addIcon), so we render it
+// with setIcon rather than assigning raw SVG to innerHTML.
+const MINI_ICON = "mininote-mini";
 
 let lastMsg = "";
 let lastAt = 0;
@@ -45,7 +39,7 @@ export interface ToastAction {
 function render(msg: string, kind: "info" | "err", timeout: number, actions?: ToastAction[]): void {
   const el = stackEl().createDiv({ cls: `mn-toast mn-toast-${kind}` });
   const top = el.createDiv({ cls: "mn-toast-top" });
-  top.createDiv({ cls: "mn-toast-icon" }).innerHTML = GLYPH;
+  setIcon(top.createDiv({ cls: "mn-toast-icon" }), MINI_ICON);
   top.createDiv({ cls: "mn-toast-msg", text: clean(msg) });
 
   let timer = 0;

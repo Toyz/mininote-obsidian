@@ -857,7 +857,7 @@ class MininoteSettingTab extends PluginSettingTab {
       .addButton((b) => b.setButtonText(this.plugin.isConnected() ? "Reconnect" : "Connect").setCta().onClick(() => void this.plugin.connect()))
       .then((s) => {
         if (this.plugin.isConnected())
-          s.addButton((b) => b.setButtonText("Disconnect").setWarning().onClick(() => void this.plugin.disconnect())); // disconnect() re-renders the tab
+          s.addButton((b) => b.setButtonText("Disconnect").setDestructive().onClick(() => void this.plugin.disconnect())); // disconnect() re-renders the tab
       });
 
     // Server URL + Client ID are dev-only knobs. Production builds bake the hosted defaults and hide
@@ -873,7 +873,7 @@ class MininoteSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Mirror folder").setDesc("Vault paths are published under this folder in mininote so they don't collide with native pages.")
       .addText((t) => t.setValue(this.plugin.settings.mirrorRoot).onChange(async (v) => { this.plugin.settings.mirrorRoot = v.trim().replace(/^\/|\/$/g, ""); await this.plugin.saveSettings(); }));
 
-    containerEl.createEl("h3", { text: "One-way sync" });
+    new Setting(containerEl).setName("One-way sync").setHeading();
     containerEl.createEl("p", { text: "Your vault is the source of truth. These keep the mininote copy in step — mininote edits never flow back.", cls: "setting-item-description" });
 
     new Setting(containerEl).setName("Sync moves").setDesc("When you move or rename a shared note, move its mininote page to match (the public link is preserved).")
@@ -891,8 +891,8 @@ class MininoteSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Show sync notifications").setDesc("Pop a toast for each background sync (a moved or deleted note syncing to mininote). Off = these happen quietly; the status bar and the mininote sidebar still reflect them. Errors always notify.")
       .addToggle((t) => t.setValue(this.plugin.settings.syncNotices).onChange(async (v) => { this.plugin.settings.syncNotices = v; await this.plugin.saveSettings(); }));
 
-    new Setting(containerEl).setName("Default share settings").setHeading();
-    containerEl.createEl("p", { text: "What every NEW share starts from. Existing shares keep their own settings; you can still change any of these per-share when you publish.", cls: "setting-item-description" });
+    new Setting(containerEl).setName("Default share options").setHeading();
+    containerEl.createEl("p", { text: "What every NEW share starts from. Existing shares keep their own; you can still change any of these per-share when you publish.", cls: "setting-item-description" });
     const save = () => void this.plugin.saveSettings();
     renderShareOptions(containerEl, this.plugin.settings.defaultOptions, save);
     renderPageSettings(containerEl, this.plugin.settings.defaultPage, save);

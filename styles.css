@@ -198,7 +198,7 @@
   color: var(--interactive-accent);
 }
 .mn-toast-err .mn-toast-icon { color: var(--text-error); }
-.mn-toast-glyph { width: 1.2rem; height: 1.2rem; display: block; }
+.mn-toast-icon .svg-icon { width: 1.2rem; height: 1.2rem; }
 .mn-toast-msg { min-width: 0; overflow-wrap: anywhere; }
 .mn-toast-actbar { display: flex; gap: 0.4rem; padding-left: 2.05rem; }
 .mn-toast-btn {

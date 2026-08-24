@@ -29,9 +29,7 @@ export function attachHoverCard(trigger: HTMLElement, build: (card: HTMLElement)
   const place = (el: HTMLElement) => {
     const r = trigger.getBoundingClientRect();
     const gap = 11; // room for the pointer arrow to bridge card → row
-    el.style.visibility = "hidden";
-    el.style.left = "0px";
-    el.style.top = "0px";
+    el.setCssStyles({ visibility: "hidden", left: "0px", top: "0px" });
     el.addClass("mn-hover-in"); // measure at full size
     const cw = el.offsetWidth;
     const ch = el.offsetHeight;
@@ -48,10 +46,8 @@ export function attachHoverCard(trigger: HTMLElement, build: (card: HTMLElement)
     let top = r.top + r.height / 2 - ch / 2;
     top = Math.max(gap, Math.min(top, window.innerHeight - ch - gap));
     const arrowY = Math.max(14, Math.min(r.top + r.height / 2 - top, ch - 14));
-    el.style.setProperty("--mn-arrow", `${arrowY}px`);
-    el.style.left = `${Math.max(gap, left)}px`;
-    el.style.top = `${top}px`;
-    el.style.visibility = "";
+    el.setCssProps({ "--mn-arrow": `${arrowY}px` });
+    el.setCssStyles({ left: `${Math.max(gap, left)}px`, top: `${top}px`, visibility: "" });
   };
 
   // Any mousedown outside the card dismisses it — a right-click (opening the row's context menu) or a
