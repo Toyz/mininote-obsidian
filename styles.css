@@ -1,0 +1,304 @@
+/* mininote plugin — layout only; colors/controls inherit the Obsidian theme. */
+.mn-share-modal .mn-muted { color: var(--text-muted); }
+
+.mn-head {
+  margin: 0 0 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.mn-head-title { font-size: var(--font-ui-medium); font-weight: var(--font-semibold); line-height: 1.2; }
+.mn-head-dest { margin-top: 0.3rem; font-size: var(--font-ui-smaller); }
+.mn-head-dest code { font-size: var(--font-smaller); }
+
+.mn-share-modal .mn-current {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+.mn-current-label { font-size: var(--font-ui-smaller); }
+
+.mn-warn {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--text-warning, var(--color-orange));
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.mn-warn-icon { flex: 0 0 auto; color: var(--text-warning, var(--color-orange)); display: flex; }
+.mn-warn-icon .svg-icon { width: 1rem; height: 1rem; }
+
+.mn-buttons { border-top: none !important; margin-top: 1.1rem; padding: 0 !important; }
+.mn-buttons .setting-item-info { display: none; }
+.mn-buttons .setting-item-control { justify-content: flex-end; gap: 0.5rem; width: 100%; }
+.mn-busy { opacity: 0.6; pointer-events: none; }
+
+/* ---- result screen ---- */
+.mn-hero { display: flex; align-items: center; gap: 0.75rem; margin: 0.25rem 0 1rem; }
+.mn-check {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.mn-check .svg-icon { width: 1.25rem; height: 1.25rem; }
+.mn-hero-title { font-size: var(--font-ui-large); font-weight: var(--font-bold); line-height: 1.1; }
+.mn-hero-sub { font-size: var(--font-ui-smaller); margin-top: 0.15rem; }
+
+.mn-linkcard {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+.mn-linkcard-url {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  color: var(--text-normal);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: pointer;
+}
+.mn-linkcard-url:hover { color: var(--text-accent); }
+.mn-icon-btn {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+.mn-icon-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.mn-icon-btn .svg-icon { width: 1rem; height: 1rem; }
+
+.mn-meta { margin: 0.7rem 0 0.2rem; font-size: var(--font-ui-smaller); }
+.mn-meta code { font-size: var(--font-smaller); }
+
+/* ---- shares sidebar view ---- */
+.mn-shares-view { padding: 0.35rem 0.3rem; }
+.mn-shares-view .mn-muted { color: var(--text-muted); }
+
+/* empty / connect state: glyph over a heading + one line, centered */
+.mn-sv-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 0.5rem;
+  padding: 2.4rem 1.2rem;
+  color: var(--text-muted);
+}
+.mn-sv-empty-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem; margin-bottom: 0.15rem;
+  border-radius: 50%;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+.mn-sv-empty-glyph .svg-icon { width: 1.5rem; height: 1.5rem; }
+.mn-sv-empty-title { font-size: var(--font-ui-small); font-weight: var(--font-semibold); color: var(--text-normal); }
+.mn-sv-empty-body { font-size: var(--font-ui-smaller); line-height: 1.45; max-width: 15rem; }
+.mn-sv-empty-cta { margin-top: 0.5rem; }
+
+/* section header: label left, count as a subtle pill on the right */
+.mn-sv-section {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.5rem 0.3rem;
+}
+.mn-sv-section-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); color: var(--text-faint); }
+.mn-sv-section-count {
+  font-size: var(--font-ui-smaller); color: var(--text-faint);
+  min-width: 1.1rem; padding: 0 0.35rem; text-align: center;
+  background: var(--background-modifier-hover); border-radius: 999px;
+}
+
+.mn-sv-list { display: flex; flex-direction: column; gap: 1px; }
+.mn-sv-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-m);
+  min-height: 2.4rem;
+  transition: background 0.1s;
+}
+.mn-sv-row:hover { background: var(--background-modifier-hover); }
+.mn-sv-rowicon {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  width: 1.6rem; height: 1.6rem;
+  color: var(--text-muted);
+}
+.mn-sv-rowicon .svg-icon { width: 1.05rem; height: 1.05rem; }
+.mn-sv-main { flex: 1 1 auto; min-width: 0; cursor: pointer; display: flex; flex-direction: column; gap: 0.05rem; }
+.mn-sv-name { font-size: var(--font-ui-small); font-weight: var(--font-medium); color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-sv-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-sv-acts { flex: 0 0 auto; display: flex; align-items: center; gap: 0.1rem; opacity: 0; transition: opacity 0.12s; }
+.mn-sv-row:hover .mn-sv-acts, .mn-sv-row:focus-within .mn-sv-acts { opacity: 1; }
+.mn-sv-act {
+  display: flex; align-items: center; justify-content: center;
+  width: 1.7rem; height: 1.7rem; padding: 0;
+  color: var(--text-muted); border-radius: var(--radius-s);
+}
+.mn-sv-act:hover { color: var(--text-normal); background: var(--background-modifier-border); }
+.mn-sv-act .svg-icon { width: 1rem; height: 1rem; }
+/* touch/narrow panels: keep actions visible so they're not undiscoverable */
+@media (hover: none) { .mn-sv-acts { opacity: 1; } }
+
+/* folder disclosure chevron + the notes revealed under an expanded folder */
+.mn-sv-chevron { cursor: pointer; border-radius: var(--radius-s); color: var(--text-faint); }
+.mn-sv-chevron:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.mn-sv-children { display: flex; flex-direction: column; margin: 0 0 0.15rem 1.5rem; padding-left: 0.35rem; border-left: 1px solid var(--background-modifier-border); }
+.mn-sv-child {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.28rem 0.4rem; border-radius: var(--radius-s);
+  cursor: pointer; color: var(--text-muted); min-width: 0;
+}
+.mn-sv-child:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.mn-sv-child .mn-sv-rowicon { width: 1.2rem; height: 1.2rem; }
+.mn-sv-child .mn-sv-rowicon .svg-icon { width: 0.9rem; height: 0.9rem; }
+.mn-sv-child-name { font-size: var(--font-ui-smaller); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-sv-child-empty { cursor: default; color: var(--text-faint); font-size: var(--font-ui-smaller); font-style: italic; }
+.mn-sv-child-empty:hover { background: none; color: var(--text-faint); }
+
+/* ---- toasts (notify.ts) ------------------------------------------------- */
+/* Self-owned toasts — NOT Obsidian's Notice (whose element + the theme's styling of it wrap our card
+ * in chrome we can't reliably strip). We render into our own fixed stack, so the card is the whole
+ * surface, full stop. */
+.mn-toasts {
+  position: fixed;
+  bottom: 2.4rem; right: 1rem;
+  z-index: var(--layer-notice, 100);
+  display: flex; flex-direction: column-reverse; gap: 0.5rem;
+  align-items: flex-end;
+  pointer-events: none; /* only the toasts themselves are interactive */
+  max-width: min(22rem, 90vw);
+}
+.mn-toast {
+  pointer-events: auto;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  width: fit-content; max-width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.32);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller); line-height: 1.3;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.mn-toast-in { opacity: 1; transform: none; }
+.mn-toast-clickable { cursor: pointer; }
+.mn-toast-top { display: flex; align-items: center; gap: 0.55rem; }
+.mn-toast-icon {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem;
+  color: var(--interactive-accent);
+}
+.mn-toast-err .mn-toast-icon { color: var(--text-error); }
+.mn-toast-glyph { width: 1.2rem; height: 1.2rem; display: block; }
+.mn-toast-msg { min-width: 0; overflow-wrap: anywhere; }
+.mn-toast-actbar { display: flex; gap: 0.4rem; padding-left: 2.05rem; }
+.mn-toast-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.mn-toast-btn:hover { background: var(--interactive-hover); }
+.mn-toast-btn-icon { display: inline-flex; }
+.mn-toast-btn-icon .svg-icon { width: 0.9rem; height: 0.9rem; }
+
+/* ---- rich hover cards (hover.ts) ---------------------------------------- */
+.mn-hovers { position: fixed; inset: 0; z-index: var(--layer-tooltip, 70); pointer-events: none; }
+.mn-hover {
+  position: fixed;
+  pointer-events: auto;
+  width: max-content; max-width: 20rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.38);
+  color: var(--text-normal);
+  opacity: 0; transform: translateY(3px);
+  transition: opacity 0.13s ease, transform 0.13s ease;
+}
+.mn-hover-in { opacity: 1; transform: none; }
+/* pointer arrow bridging the card to the row it describes. Two stacked triangles: the outer one is
+ * the border color, the inner (1px smaller, offset) is the card fill — so the arrow keeps the border. */
+.mn-hover { --mn-arrow: 20px; }
+.mn-hover::before, .mn-hover::after { content: ""; position: absolute; top: var(--mn-arrow); width: 0; height: 0; transform: translateY(-50%); }
+.mn-hover-left::before  { right: -8px; border: 8px solid transparent; border-left-color: var(--background-modifier-border); }
+.mn-hover-left::after   { right: -7px; border: 7px solid transparent; border-left-color: var(--background-secondary); }
+.mn-hover-right::before { left: -8px;  border: 8px solid transparent; border-right-color: var(--background-modifier-border); }
+.mn-hover-right::after  { left: -7px;  border: 7px solid transparent; border-right-color: var(--background-secondary); }
+.mn-hover-head { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.5rem; }
+.mn-hover-icon { flex: 0 0 auto; display: flex; color: var(--text-muted); }
+.mn-hover-icon .svg-icon { width: 1rem; height: 1rem; }
+.mn-hover-title { font-size: var(--font-ui-small); font-weight: var(--font-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 2-col grid so labels + values line up no matter how long a label is (col 1 sizes to the widest). */
+.mn-hover-rows { display: grid; grid-template-columns: auto 1fr; column-gap: 0.7rem; row-gap: 0.25rem; font-size: var(--font-ui-smaller); line-height: 1.35; }
+.mn-hover-row { display: contents; }
+.mn-hover-label { color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.mn-hover-value { min-width: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.mn-hover-mono { font-family: var(--font-monospace); font-size: var(--font-smaller); color: var(--text-normal); }
+.mn-hover-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.55rem; }
+.mn-hover-badge {
+  font-size: var(--font-ui-smaller);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+.mn-hover-badge-plain { background: transparent; color: var(--text-faint); padding-left: 0; }
+
+/* ---- share modal: grouped section cards -------------------------------- */
+.mn-section-head { margin: 0.9rem 0 0.35rem; }
+.mn-section-title { font-size: var(--font-ui-small); font-weight: var(--font-semibold); line-height: 1.2; }
+.mn-section-desc { font-size: var(--font-ui-smaller); margin-top: 0.05rem; line-height: 1.3; }
+.mn-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary-alt);
+  padding: 0.35rem 0.75rem;
+}
+.mn-card .setting-item { border-top: 1px solid var(--background-modifier-border); padding: 0.6rem 0; }
+.mn-card .setting-item:first-child { border-top: none; padding-top: 0.15rem; }
+.mn-card .setting-item:last-child { padding-bottom: 0.15rem; }
+.mn-card .setting-item-name { font-size: var(--font-ui-small); }
+.mn-card .setting-item-description { font-size: var(--font-ui-smaller); }
+
+/* ---- page settings (width thumbnails) ---------------------------------- */
+.mn-ps-widths { display: flex; gap: 0.5rem; margin: 0.15rem 0 0.5rem; }
+.mn-ps-width {
+  flex: 1 1 0; min-width: 0;
+  padding: 0.45rem; cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  transition: border-color 0.1s, background 0.1s;
+}
+.mn-ps-width:hover { background: var(--background-modifier-hover); }
+.mn-ps-width.is-sel { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
+/* mock "page" with a centered column of text lines at the chosen width */
+.mn-ps-mock {
+  height: 3rem; margin-bottom: 0.4rem;
+  display: flex; justify-content: center;
+  background: var(--background-secondary); border-radius: var(--radius-s);
+  padding: 0.4rem 0;
+}
+.mn-ps-col { display: flex; flex-direction: column; gap: 0.28rem; justify-content: center; }
+.mn-ps-col-normal { width: 42%; }
+.mn-ps-col-wide { width: 82%; }
+.mn-ps-line { height: 0.28rem; border-radius: 1px; background: var(--text-faint); opacity: 0.45; }
+.mn-ps-line:last-child { width: 60%; } /* ragged last line reads as text */
+.mn-ps-width.is-sel .mn-ps-line { background: var(--interactive-accent); opacity: 0.85; }
+.mn-ps-wlabel { font-size: var(--font-ui-small); font-weight: var(--font-medium); }
+.mn-ps-wsub { font-size: var(--font-ui-smaller); line-height: 1.25; }

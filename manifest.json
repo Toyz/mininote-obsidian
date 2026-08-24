@@ -1,7 +1,7 @@
 {
   "id": "mininote",
   "name": "mininote",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minAppVersion": "1.5.0",
   "description": "Publish and share your notes through mininote: push a note, get a public link. Your vault stays the source of truth.",
   "author": "mininote",
