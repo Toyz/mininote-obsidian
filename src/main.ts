@@ -1,10 +1,10 @@
-import { addIcon, App, Plugin, PluginSettingTab, Setting, TAbstractFile, TFile, TFolder, type Menu, type MenuItem, type ObsidianProtocolData, type WorkspaceLeaf } from "obsidian";
+import { addIcon, App, Plugin, PluginSettingTab, TAbstractFile, TFile, TFolder, type Menu, type MenuItem, type ObsidianProtocolData, type SettingDefinitionItem, type WorkspaceLeaf } from "obsidian";
 import { Api, ReauthNeeded, type TokenStore } from "./api";
 import { Mn } from "./mn";
 import { authorizeUrl, challengeFor, exchangeCode, randomUrlToken, type Tokens } from "./oauth";
 import { pagePath, parentPath, publishNote, shareNode, shareUrl, stripFrontmatter, type PublishResult } from "./publish";
 import { rewriteImages, scanImages } from "./images";
-import { ShareModal, renderShareOptions, renderPageSettings } from "./share-modal";
+import { ShareModal } from "./share-modal";
 import { FolderShareModal } from "./folder-modal";
 import { DEFAULT_OPTIONS, DEFAULT_PAGE_SETTINGS, relTime, type ShareMap, type ShareRecord, type PageSettings } from "./state";
 import { SharesView, SHARES_VIEW, MINI_ICON } from "./shares-view";
@@ -292,7 +292,7 @@ export default class MininotePlugin extends Plugin {
   // refreshSettingsTab re-renders the settings tab, but only when it's actually on screen — so an
   // async connect/disconnect reflects immediately, without nuking focus in a field on the 60s tick.
   private refreshSettingsTab() {
-    if (this.settingTab && this.settingTab.containerEl.isConnected) this.settingTab.display();
+    if (this.settingTab && this.settingTab.containerEl.isConnected) this.settingTab.update();
   }
 
   // hydrateShares rebuilds the local share map from the account's live shares. The map is per-machine
@@ -845,57 +845,84 @@ const mnSlug = (s: string): string => (s || "").toLowerCase().replace(/[^a-z0-9]
 class MininoteSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: MininotePlugin) { super(app, plugin); }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
+  // Declarative settings (Obsidian 1.13+): the same settings expressed as data so they're searchable
+  // and future-proof. display() below still renders for < 1.13. Dotted keys (defaultOptions.allowFork)
+  // are resolved by the getControlValue/setControlValue overrides.
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const p = this.plugin;
+    const defs: SettingDefinitionItem[] = [];
 
-    const connDesc = this.plugin.isConnected()
-      ? (this.plugin.settings.handle ? `Connected as ${this.plugin.settings.handle}.` : "Connected to mininote.")
-      : "Not connected.";
-    new Setting(containerEl)
-      .setName("Status")
-      .setDesc(connDesc)
-      .addButton((b) => b.setButtonText(this.plugin.isConnected() ? "Reconnect" : "Connect").setCta().onClick(() => void this.plugin.connect()))
-      .then((s) => {
-        if (this.plugin.isConnected())
-          s.addButton((b) => { b.setButtonText("Disconnect").onClick(() => void this.plugin.disconnect()); b.buttonEl.addClass("mod-warning"); }); // mod-warning = destructive styling, no version-gated API
-      });
+    defs.push({
+      name: "Status",
+      render: (setting) => {
+        setting.setName("Status").setDesc(
+          p.isConnected() ? (p.settings.handle ? `Connected as ${p.settings.handle}.` : "Connected to mininote.") : "Not connected.",
+        );
+        setting.addButton((b) => b.setButtonText(p.isConnected() ? "Reconnect" : "Connect").setCta().onClick(() => void p.connect()));
+        if (p.isConnected()) setting.addButton((b) => { b.setButtonText("Disconnect").onClick(() => void p.disconnect()); b.buttonEl.addClass("mod-warning"); });
+      },
+    });
 
-    // Server URL + Client ID are dev-only knobs. Production builds bake the hosted defaults and hide
-    // them so users just Connect.
     if (__MN_DEV__) {
-      new Setting(containerEl).setName("Server URL").setDesc("Your mininote instance. Local dev: http://localhost:5173")
-        .addText((t) => t.setValue(this.plugin.settings.base).onChange(async (v) => { this.plugin.settings.base = v.trim().replace(/\/$/, ""); await this.plugin.saveSettings(); }));
-
-      new Setting(containerEl).setName("Client ID").setDesc("The OAuth client id registered in mininote (Settings → apps).")
-        .addText((t) => t.setValue(this.plugin.settings.clientId).onChange(async (v) => { this.plugin.settings.clientId = v.trim(); await this.plugin.saveSettings(); }));
+      defs.push({ name: "Server URL", desc: "Your mininote instance. Local dev: http://localhost:5173", control: { type: "text", key: "base" } });
+      defs.push({ name: "Client ID", desc: "The OAuth client id registered in mininote (Settings -> apps).", control: { type: "text", key: "clientId" } });
     }
 
-    new Setting(containerEl).setName("Mirror folder").setDesc("Vault paths are published under this folder in mininote so they don't collide with native pages.")
-      .addText((t) => t.setValue(this.plugin.settings.mirrorRoot).onChange(async (v) => { this.plugin.settings.mirrorRoot = v.trim().replace(/^\/|\/$/g, ""); await this.plugin.saveSettings(); }));
+    defs.push({ name: "Mirror folder", desc: "Vault paths are published under this folder in mininote so they don't collide with native pages.", control: { type: "text", key: "mirrorRoot" } });
 
-    new Setting(containerEl).setName("One-way sync").setHeading();
-    containerEl.createEl("p", { text: "Your vault is the source of truth. These keep the mininote copy in step — mininote edits never flow back.", cls: "setting-item-description" });
+    defs.push({
+      type: "group",
+      heading: "One-way sync",
+      items: [
+        { name: "Sync moves", desc: "Move or rename a shared note -> move its mininote page to match (the link is preserved).", control: { type: "toggle", key: "syncMoves" } },
+        { name: "Sync deletes", desc: "Delete a shared note -> revoke its share and delete the mininote page. Off = revoke only.", control: { type: "toggle", key: "syncDeletes" } },
+        { name: "Sync edits", desc: "Edit a shared note -> push the change to its live share (debounced).", control: { type: "toggle", key: "syncEdits" } },
+        { name: "Sync tags", desc: "Push a note's tags (inline + frontmatter). Additive — dropping a tag in Obsidian doesn't remove it.", control: { type: "toggle", key: "syncTags" } },
+        { name: "Show sync notifications", desc: "Toast on each background sync. Off = quiet (status bar + sidebar still update). Errors always notify.", control: { type: "toggle", key: "syncNotices" } },
+      ],
+    });
 
-    new Setting(containerEl).setName("Sync moves").setDesc("When you move or rename a shared note, move its mininote page to match (the public link is preserved).")
-      .addToggle((t) => t.setValue(this.plugin.settings.syncMoves).onChange(async (v) => { this.plugin.settings.syncMoves = v; await this.plugin.saveSettings(); }));
+    defs.push({
+      type: "group",
+      heading: "New share defaults",
+      items: [
+        { name: "Allow forking", desc: "Let visitors copy a page into their own mininote.", control: { type: "toggle", key: "defaultOptions.allowFork" } },
+        { name: "Allow raw source", desc: "Expose the markdown source + tree manifest at /raw/.", control: { type: "toggle", key: "defaultOptions.allowRaw" } },
+        { name: "Allow downloads", desc: "Let anyone download the note (md, zip, epub).", control: { type: "toggle", key: "defaultOptions.allowExport" } },
+        { name: "Allow annotations", desc: "Let logged-in visitors annotate the shared page.", control: { type: "toggle", key: "defaultOptions.allowAnnotations" } },
+        { name: "Reading width", desc: "How wide the column renders on mininote.", control: { type: "dropdown", key: "defaultPage.width", options: { "": "Normal", wide: "Wide" } } },
+        { name: "Unlisted", desc: "Keep new shares out of smart-folder / automatic exposure. Direct links still work.", control: { type: "toggle", key: "defaultPage.unlisted" } },
+      ],
+    });
 
-    new Setting(containerEl).setName("Sync deletes").setDesc("When you delete a shared note, revoke its share AND delete the mininote page. Off = only revoke the share, keep the page.")
-      .addToggle((t) => t.setValue(this.plugin.settings.syncDeletes).onChange(async (v) => { this.plugin.settings.syncDeletes = v; await this.plugin.saveSettings(); }));
-
-    new Setting(containerEl).setName("Sync edits").setDesc("When you edit a shared note, push the changes to its live mininote share (debounced). Off = the share stays at what you last published.")
-      .addToggle((t) => t.setValue(this.plugin.settings.syncEdits).onChange(async (v) => { this.plugin.settings.syncEdits = v; await this.plugin.saveSettings(); }));
-
-    new Setting(containerEl).setName("Sync tags").setDesc("Push a note's tags (inline #tags + frontmatter) to its mininote page. Creates the tag in your mininote vocabulary if it's new. Additive — dropping a tag in Obsidian doesn't remove it in mininote.")
-      .addToggle((t) => t.setValue(this.plugin.settings.syncTags).onChange(async (v) => { this.plugin.settings.syncTags = v; await this.plugin.saveSettings(); }));
-
-    new Setting(containerEl).setName("Show sync notifications").setDesc("Pop a toast for each background sync (a moved or deleted note syncing to mininote). Off = these happen quietly; the status bar and the mininote sidebar still reflect them. Errors always notify.")
-      .addToggle((t) => t.setValue(this.plugin.settings.syncNotices).onChange(async (v) => { this.plugin.settings.syncNotices = v; await this.plugin.saveSettings(); }));
-
-    new Setting(containerEl).setName("New share defaults").setHeading();
-    containerEl.createEl("p", { text: "What every NEW share starts from. Existing shares keep their own; you can still change any of these per-share when you publish.", cls: "setting-item-description" });
-    const save = () => void this.plugin.saveSettings();
-    renderShareOptions(containerEl, this.plugin.settings.defaultOptions, save);
-    renderPageSettings(containerEl, this.plugin.settings.defaultPage, save);
+    return defs;
   }
+
+  // Resolve control keys against plugin.settings, incl. dotted keys for the nested default objects,
+  // and normalize the path-ish text fields on write.
+  getControlValue(key: string): unknown {
+    const s = this.plugin.settings as unknown as Record<string, unknown>;
+    if (key.includes(".")) {
+      const [a, b] = key.split(".");
+      return (s[a] as Record<string, unknown> | undefined)?.[b];
+    }
+    return s[key];
+  }
+
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    if (typeof value === "string") {
+      if (key === "mirrorRoot") value = value.trim().replace(/^\/|\/$/g, "");
+      else if (key === "base") value = value.trim().replace(/\/$/, "");
+      else if (key === "clientId") value = value.trim();
+    }
+    const s = this.plugin.settings as unknown as Record<string, unknown>;
+    if (key.includes(".")) {
+      const [a, b] = key.split(".");
+      (s[a] as Record<string, unknown>)[b] = value;
+    } else {
+      s[key] = value;
+    }
+    await this.plugin.saveSettings();
+  }
+
 }

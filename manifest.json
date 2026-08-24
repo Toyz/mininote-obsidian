@@ -1,8 +1,8 @@
 {
   "id": "mininote",
   "name": "mininote",
-  "version": "0.1.8",
-  "minAppVersion": "1.7.2",
+  "version": "0.1.9",
+  "minAppVersion": "1.13.0",
   "description": "Publish and share your notes through mininote: push a note, get a public link. Your vault stays the source of truth.",
   "author": "mininote",
   "authorUrl": "https://mininote.ink",
