@@ -2,7 +2,7 @@ import { addIcon, App, Plugin, PluginSettingTab, TAbstractFile, TFile, TFolder, 
 import { Api, ReauthNeeded, type TokenStore } from "./api";
 import { Mn } from "./mn";
 import { authorizeUrl, challengeFor, exchangeCode, randomUrlToken, type Tokens } from "./oauth";
-import { pagePath, parentPath, publishNote, shareNode, shareUrl, stripFrontmatter, type PublishResult } from "./publish";
+import { pagePath, parentPath, mirrorNote, publishNote, shareNode, shareUrl, stripFrontmatter, type PublishResult } from "./publish";
 import { rewriteImages, scanImages } from "./images";
 import { ShareModal } from "./share-modal";
 import { FolderShareModal } from "./folder-modal";
@@ -155,6 +155,17 @@ export default class MininotePlugin extends Plugin {
       },
     });
     this.addCommand({
+      id: "push-private",
+      name: "Push current note to mininote (private, no share)",
+      checkCallback: (checking) => {
+        if (!this.isConnected()) return false;
+        const file = this.app.workspace.getActiveFile();
+        if (!file || file.extension !== "md") return false;
+        if (!checking) void this.pushPrivate(file);
+        return true;
+      },
+    });
+    this.addCommand({
       id: "unshare",
       name: "Stop sharing current note",
       checkCallback: (checking) => {
@@ -178,12 +189,16 @@ export default class MininotePlugin extends Plugin {
     // Right-click a note or folder in the explorer -> a single "mininote" submenu.
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => {
       if (file instanceof TFile && file.extension === "md") {
-        const shared = !!this.settings.shares[file.path];
+        const rec = this.settings.shares[file.path];
+        const shared = !!rec?.token;
+        const tracked = !!rec;
         menu.addItem((item) => {
           item.setTitle("mininote").setIcon("share");
           const sub = (item as MenuItemWithSubmenu).setSubmenu();
           sub.addItem((i) => i.setTitle(shared ? "Update share" : "Share").setIcon("share").onClick(() => void this.openShareModal(file)));
+          sub.addItem((i) => i.setTitle("Push (private)").setIcon("upload").onClick(() => void this.pushPrivate(file)));
           if (shared) sub.addItem((i) => i.setTitle("Stop sharing").setIcon("x").onClick(() => void this.unshare(file)));
+          else if (tracked) sub.addItem((i) => i.setTitle("Remove from mininote").setIcon("trash-2").onClick(() => void this.removeFromMininote(file)));
         });
       } else if (file instanceof TFolder) {
         const count = this.markdownFilesUnder(file).length;
@@ -375,7 +390,7 @@ export default class MininotePlugin extends Plugin {
       mininotePath: pagePath(this.settings.mirrorRoot, file.path),
       warn,
       existing: record,
-      existingUrl: record ? shareUrl(this.settings.base, record.token, this.settings.handle, this.settings.appDomain) : null,
+      existingUrl: record?.token ? shareUrl(this.settings.base, record.token, this.settings.handle, this.settings.appDomain) : null,
       initial: record?.options ?? { ...this.settings.defaultOptions },
       initialPage: record?.pageSettings ?? { ...this.settings.defaultPage },
       publish: (opts, page) => this.doPublish(file, opts, page),
@@ -396,6 +411,45 @@ export default class MininotePlugin extends Plugin {
     } catch (e) {
       if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
       notifyErr("mininote: share failed — " + errMsg(e));
+    }
+  }
+
+  // pushPrivate mirrors the active note UP to mininote WITHOUT sharing it — a one-way private copy in
+  // your workspace, no public link. Tracked with token:"" so the sidebar + edit/move/delete sync all
+  // treat it like any tracked note (minus the public-link actions). Promote it to a share any time.
+  private async pushPrivate(file: TFile) {
+    if (!this.settings.tokens) { notify("mininote: run Connect first"); return; }
+    const existing = this.settings.shares[file.path];
+    try {
+      const raw = await this.app.vault.read(file);
+      const pageId = await mirrorNote(this.mn, {
+        base: this.settings.base,
+        mirrorRoot: this.settings.mirrorRoot,
+        vaultPath: file.path,
+        title: titleFor(file, raw),
+        body: this.buildPublishBody(file, raw),
+        handle: this.settings.handle,
+        appDomain: this.settings.appDomain,
+      });
+      const page = existing?.pageSettings ?? { ...this.settings.defaultPage };
+      if (this.settings.syncTags) { try { await this.mn.syncTags(pageId, this.tagsFor(file)); } catch { /* tags best-effort */ } }
+      try { await this.mn.applyPageConfig(pageId, page); } catch { /* page-config best-effort */ }
+      const now = Date.now();
+      this.settings.shares[file.path] = {
+        pageId,
+        token: existing?.token ?? "", // keep an existing share if this note was already public; else private
+        mininotePath: pagePath(this.settings.mirrorRoot, file.path),
+        options: existing?.options ?? { ...this.settings.defaultOptions },
+        pageSettings: page,
+        lastSyncedAt: now,
+        updatedAt: now,
+      };
+      await this.saveSettings();
+      this.updateStatus();
+      notify(existing?.token ? "mininote: synced" : "mininote: copied to mininote (private)");
+    } catch (e) {
+      if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
+      notifyErr("mininote: push failed — " + errMsg(e));
     }
   }
 
@@ -421,18 +475,38 @@ export default class MininotePlugin extends Plugin {
     return res;
   }
 
+  // unshare revokes the public share but KEEPS the private mirror (token -> "") — sharing is a layer on
+  // top of a mirrored copy, so removing it leaves the note in your workspace, still edit-synced.
   private async unshare(file: TFile) {
     const rec = this.settings.shares[file.path];
-    if (!rec) { notify("mininote: this note isn't shared"); return; }
+    if (!rec?.token) { notify("mininote: this note isn't shared"); return; }
     try {
-      await this.mn.shareRevoke(rec.pageId); // leaves the mirrored page private; re-share re-finds it by path
-      delete this.settings.shares[file.path];
+      await this.mn.shareRevoke(rec.pageId); // the mirrored page stays; re-share re-finds it by path
+      rec.token = "";
       await this.saveSettings();
       this.updateStatus();
-      notify("mininote: stopped sharing");
+      notify("mininote: stopped sharing — still mirrored (private)");
     } catch (e) {
       if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
       notifyErr("mininote: couldn't stop sharing — " + errMsg(e));
+    }
+  }
+
+  // removeFromMininote deletes the mininote page entirely (revoking any share first) and drops tracking
+  // — the full "take it off mininote", vs unshare which keeps the private copy.
+  private async removeFromMininote(file: TFile) {
+    const rec = this.settings.shares[file.path];
+    if (!rec) { notify("mininote: this note isn't on mininote"); return; }
+    try {
+      if (rec.token) await this.mn.shareRevoke(rec.pageId);
+      await this.mn.deletePage(rec.pageId);
+      delete this.settings.shares[file.path];
+      await this.saveSettings();
+      this.updateStatus();
+      notify("mininote: removed from mininote");
+    } catch (e) {
+      if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
+      notifyErr("mininote: couldn't remove — " + errMsg(e));
     }
   }
 
@@ -565,9 +639,9 @@ export default class MininotePlugin extends Plugin {
     this.updateStatus();
     if (!this.settings.tokens) return;
     try {
-      await this.mn.shareRevoke(rec.pageId);
+      if (rec.token) await this.mn.shareRevoke(rec.pageId); // only shared notes have a share to revoke
       if (this.settings.syncDeletes) await this.mn.deletePage(rec.pageId);
-      if (this.settings.syncNotices) notify("mininote: removed the shared note");
+      if (this.settings.syncNotices) notify(rec.token ? "mininote: removed the shared note" : "mininote: removed the mirrored note");
     } catch (e) {
       if (!(e instanceof ReauthNeeded)) notifyErr("mininote: delete sync failed — " + errMsg(e));
     }
@@ -738,6 +812,23 @@ export default class MininotePlugin extends Plugin {
     const rec = this.settings.shares[path];
     if (!rec) return;
     try { await this.mn.shareRevoke(rec.pageId); } catch { /* best effort */ }
+    delete this.settings.shares[path];
+    await this.saveSettings();
+    this.updateStatus();
+  }
+
+  // removeByPath fully deletes the mininote page (share + copy) for a row. Distinct from revokeByPath,
+  // which only stops sharing and keeps the private mirror.
+  async removeByPath(path: string) {
+    const f = this.app.vault.getAbstractFileByPath(path);
+    if (f instanceof TFile) { await this.removeFromMininote(f); return; }
+    // Folder, or a record whose vault file is gone: revoke + delete the tracked page, clear the row.
+    const rec = this.settings.shares[path];
+    if (!rec) return;
+    try {
+      if (rec.token) await this.mn.shareRevoke(rec.pageId);
+      await this.mn.deletePage(rec.pageId);
+    } catch { /* best effort */ }
     delete this.settings.shares[path];
     await this.saveSettings();
     this.updateStatus();

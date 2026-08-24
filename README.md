@@ -8,6 +8,7 @@ This is a **publish** plugin, not a sync plugin. Notes flow one way — from you
 
 - **Share a note** — publishes it to mininote and gives you a public link.
 - **Share a folder** — mirrors every note under it and shares the folder as one public link (the whole subtree behind a single URL).
+- **Push without sharing** — copy a note up to mininote privately, with no public link, kept edit-synced like a share. Promote it to a public share, or remove it, any time.
 - **Keeps the copy in step (one way)** — when you edit, move, rename, or delete a shared note, the mininote copy follows. Each of these is a toggle; all off = a plain one-time publish.
 - **Per-share control** — forking, raw source, downloads, annotations, password, plus page settings (reading width, unlisted). Set your own defaults once and every new share starts from them.
 - **A shares sidebar** — everything this vault has published, with quick copy/open/manage/resync/stop and a hover preview of each share.
@@ -45,6 +46,7 @@ The plugin only ever holds a scoped OAuth token for your account — it can read
 - **A note:** right-click it (or the ribbon / command palette) -> mininote -> Share. Pick your options and Publish. You get a link you can copy or open.
 - **A folder:** right-click the folder -> mininote -> Share folder. Every markdown note under it is mirrored and the folder is shared as one link. Page settings you choose apply to every note in the folder.
 - **Quick share:** the **Quick share current note (use defaults)** command publishes the active note straight from your saved defaults — no dialog — and drops the link in a toast with Copy link / Open. Bind a hotkey to it for one-key publishing.
+- **Push without sharing:** right-click -> mininote -> **Push (private)** (or the command) mirrors the note into your mininote workspace with **no public link** — a private one-way copy, still edit-synced. Promote it to a share whenever you want. **Stop sharing** on a shared note drops the link but keeps the private copy; **Remove from mininote** deletes the page entirely.
 
 Notes are published under a **mirror folder** (default `Vault`) inside mininote, so they never collide with pages you made there directly. Re-publishing the same note updates the same page (stable link) instead of making a duplicate.
 
@@ -64,7 +66,7 @@ Each share can set mininote page config the plugin manages:
 - **Reading width** — Normal (focused column) or Wide (full-bleed, for tables and wide media).
 - **Unlisted** — keep the page out of smart-folder / automatic exposure; direct links still work.
 
-Set defaults for all of the above (sharing options included) under **Default share settings** in the settings tab. New shares start from your defaults; existing shares keep their own, and you can override anything per-share when you publish.
+Set defaults for all of the above (sharing options included) under **New share defaults** in the settings tab. New shares start from your defaults; existing shares keep their own, and you can override anything per-share when you publish.
 
 ## Images and links
 
@@ -73,11 +75,12 @@ Set defaults for all of the above (sharing options included) under **Default sha
 
 ## Commands
 
-- Connect to mininote
-- Share current note to mininote
+- Connect
+- Share current note
 - Quick share current note (use defaults)
+- Push current note to mininote (private, no share)
 - Stop sharing current note
-- Disconnect from mininote
+- Disconnect
 
 ## License
 

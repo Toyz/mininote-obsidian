@@ -16,7 +16,8 @@ export interface SharesHost {
   openLink(url: string): void;
   openNote(path: string): void;
   manageByPath(path: string): void;
-  revokeByPath(path: string): Promise<void>;
+  revokeByPath(path: string): Promise<void>; // stop sharing -> keep private mirror
+  removeByPath(path: string): Promise<void>; // delete from mininote entirely
   forceResync(path: string): void;
   folderNotes(folderPath: string): string[]; // ALL .md notes under a shared folder (recursive) — for the count
   folderChildren(folderPath: string): { folders: string[]; notes: string[] }; // IMMEDIATE children — for the tree
@@ -104,24 +105,30 @@ export class SharesView extends ItemView {
         setIcon(icon, "file-text");
       }
 
+      // A note with no share token is a PRIVATE mirror (copied up, not published). Folders here are
+      // always shares. Private rows keep the sync state but drop the public-link actions.
+      const shared = isFolder || !!rec.token;
+      const synced = rec.lastSyncedAt ? "synced " + relTime(rec.lastSyncedAt) : rec.updatedAt ? "updated " + relTime(rec.updatedAt) : "";
+
       const main = row.createDiv({ cls: "mn-sv-main" });
       main.createDiv({ cls: "mn-sv-name", text: nameOf(path) });
       const sub = main.createDiv({ cls: "mn-sv-sub mn-muted" });
       sub.setText(
         isFolder ? plural(notes.length, "note")
-          : rec.lastSyncedAt ? "synced " + relTime(rec.lastSyncedAt)
-          : rec.updatedAt ? "updated " + relTime(rec.updatedAt)
-          : path,
+          : shared ? (synced || "shared")
+          : "Private · " + (synced || "not synced"),
       );
       main.onclick = () => this.host.manageByPath(path);
       attachHoverCard(main, (card) => this.buildCard(card, path, rec, isFolder, notes));
 
       const acts = row.createDiv({ cls: "mn-sv-acts" });
-      this.act(acts, "copy", "Copy link", () => {
-        void navigator.clipboard.writeText(this.host.shareUrlFor(rec)).catch(() => {});
-        notify("mininote: link copied");
-      });
-      this.act(acts, "external-link", "Open link", () => this.host.openLink(this.host.shareUrlFor(rec)));
+      if (shared) {
+        this.act(acts, "copy", "Copy link", () => {
+          void navigator.clipboard.writeText(this.host.shareUrlFor(rec)).catch(() => {});
+          notify("mininote: link copied");
+        });
+        this.act(acts, "external-link", "Open link", () => this.host.openLink(this.host.shareUrlFor(rec)));
+      }
       this.act(acts, "more-vertical", "More actions", (e) => this.rowMenu(path, rec, isFolder, e));
 
       // Right-click anywhere on the row opens the same menu.
@@ -169,13 +176,17 @@ export class SharesView extends ItemView {
     setIcon(hi, isFolder ? "folder" : "file-text");
     head.createDiv({ cls: "mn-hover-title", text: nameOf(path) });
 
+    const shared = isFolder || !!rec.token;
     const rows = card.createDiv({ cls: "mn-hover-rows" });
     this.cardRow(rows, "Path", path);
-    this.cardRow(rows, "Link", this.host.shareUrlFor(rec), true);
+    if (shared) this.cardRow(rows, "Link", this.host.shareUrlFor(rec), true);
+    this.cardRow(rows, "Access", shared ? "Public" : "Private (not shared)");
     if (isFolder) this.cardRow(rows, "Contents", plural(notes.length, "note"));
     if (rec.updatedAt) this.cardRow(rows, "Updated", relTime(rec.updatedAt));       // page's last edit (server)
     if (rec.lastSyncedAt) this.cardRow(rows, "Synced", relTime(rec.lastSyncedAt));  // last push from this vault
 
+    const bar = card.createDiv({ cls: "mn-hover-badges" });
+    if (!shared) { bar.createSpan({ cls: "mn-hover-badge mn-hover-badge-plain", text: "Private · in your workspace only" }); return; }
     const o = rec.options;
     const badges: string[] = [];
     if (o.password) badges.push("Password");
@@ -186,7 +197,6 @@ export class SharesView extends ItemView {
     const ps = rec.pageSettings;
     if (ps?.width === "wide") badges.push("Wide");
     if (ps?.unlisted) badges.push("Unlisted");
-    const bar = card.createDiv({ cls: "mn-hover-badges" });
     if (badges.length) for (const b of badges) bar.createSpan({ cls: "mn-hover-badge", text: b });
     else bar.createSpan({ cls: "mn-hover-badge mn-hover-badge-plain", text: "Public · view only" });
   }
@@ -199,18 +209,23 @@ export class SharesView extends ItemView {
   }
 
   private rowMenu(path: string, rec: ShareRecord, isFolder: boolean, e: MouseEvent) {
-    const url = this.host.shareUrlFor(rec);
+    const shared = isFolder || !!rec.token;
     const menu = new Menu();
-    menu.addItem((i) => i.setTitle("Open link").setIcon("external-link").onClick(() => this.host.openLink(url)));
-    menu.addItem((i) => i.setTitle("Copy link").setIcon("copy").onClick(async () => {
-      await navigator.clipboard.writeText(url).catch(() => {});
-      notify("mininote: link copied");
-    }));
+    if (shared) {
+      const url = this.host.shareUrlFor(rec);
+      menu.addItem((i) => i.setTitle("Open link").setIcon("external-link").onClick(() => this.host.openLink(url)));
+      menu.addItem((i) => i.setTitle("Copy link").setIcon("copy").onClick(async () => {
+        await navigator.clipboard.writeText(url).catch(() => {});
+        notify("mininote: link copied");
+      }));
+    }
     if (!isFolder) menu.addItem((i) => i.setTitle("Open note").setIcon("pencil").onClick(() => this.host.openNote(path)));
     menu.addItem((i) => i.setTitle("Force resync").setIcon("refresh-cw").onClick(() => this.host.forceResync(path)));
-    menu.addItem((i) => i.setTitle("Manage share…").setIcon("settings").onClick(() => this.host.manageByPath(path)));
+    // A private note promotes to a share through the same manage flow (publishing it adds the token).
+    menu.addItem((i) => i.setTitle(shared ? "Manage share…" : "Share…").setIcon("settings").onClick(() => this.host.manageByPath(path)));
     menu.addSeparator();
-    menu.addItem((i) => i.setTitle(isFolder ? "Stop sharing folder" : "Stop sharing").setIcon("trash-2").setWarning(true).onClick(() => void this.host.revokeByPath(path)));
+    if (shared) menu.addItem((i) => i.setTitle(isFolder ? "Stop sharing folder" : "Stop sharing").setIcon("x").setWarning(true).onClick(() => void this.host.revokeByPath(path)));
+    if (!isFolder) menu.addItem((i) => i.setTitle("Remove from mininote").setIcon("trash-2").setWarning(true).onClick(() => void this.host.removeByPath(path)));
     menu.showAtMouseEvent(e);
   }
 

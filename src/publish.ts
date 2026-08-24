@@ -16,12 +16,20 @@ export interface PublishInput {
 
 export interface PublishResult { pageId: string; token: string; url: string }
 
-export async function publishNote(mn: Mn, input: PublishInput, opts: ShareOptions): Promise<PublishResult> {
+// mirrorNote copies a note UP to mininote (upsert at its mirror path) WITHOUT sharing it — a private
+// one-way copy that lives in the owner's workspace with no public link. Returns the page id.
+export async function mirrorNote(mn: Mn, input: PublishInput): Promise<string> {
   const path = pagePath(input.mirrorRoot, input.vaultPath);
   const page = await mn.upsert(path, input.title, input.body);
   if (!page?.id) throw new Error("upsert returned no page id");
-  const { token, url } = await shareNode(mn, page.id, opts, input.base, input.handle, input.appDomain);
-  return { pageId: page.id, token, url };
+  return page.id;
+}
+
+// publishNote mirrors the note AND shares it publicly (upsert + create/enforce the share).
+export async function publishNote(mn: Mn, input: PublishInput, opts: ShareOptions): Promise<PublishResult> {
+  const pageId = await mirrorNote(mn, input);
+  const { token, url } = await shareNode(mn, pageId, opts, input.base, input.handle, input.appDomain);
+  return { pageId, token, url };
 }
 
 // shareNode publishes an EXISTING mininote node (page or folder) and enforces the exact options.
