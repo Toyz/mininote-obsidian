@@ -49,12 +49,15 @@ export class FolderShareModal extends Modal {
     const bar = new Setting(contentEl);
     bar.settingEl.addClass("mn-buttons");
     if (this.ctx.existingUrl) {
-      bar.addButton((b) => b.setButtonText("Stop sharing").setDestructive().onClick(async () => {
-        if (this.busy) return;
-        this.busy = true;
-        try { await this.ctx.unshare(); notify("mininote: stopped sharing folder"); this.close(); }
-        catch (e) { this.busy = false; notifyErr("mininote: " + ((e as { message?: string })?.message ?? "failed")); }
-      }));
+      bar.addButton((b) => {
+        b.setButtonText("Stop sharing").onClick(async () => {
+          if (this.busy) return;
+          this.busy = true;
+          try { await this.ctx.unshare(); notify("mininote: stopped sharing folder"); this.close(); }
+          catch (e) { this.busy = false; notifyErr("mininote: " + ((e as { message?: string })?.message ?? "failed")); }
+        });
+        b.buttonEl.addClass("mod-warning"); // destructive styling without the version-gated setDestructive()
+      });
     }
     bar.addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()));
     bar.addButton((b) => b.setButtonText(this.ctx.existingUrl ? `Update ${this.ctx.count}` : `Publish ${this.ctx.count}`).setCta().onClick(async () => {

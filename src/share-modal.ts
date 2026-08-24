@@ -70,12 +70,15 @@ export class ShareModal extends Modal {
     bar.settingEl.addClass("mn-buttons");
 
     if (this.ctx.existing) {
-      bar.addButton((b) => b.setButtonText("Stop sharing").setDestructive().onClick(async () => {
-        if (this.busy) return;
-        this.setBusy(true);
-        try { await this.ctx.unshare(); notify("mininote: stopped sharing"); this.close(); }
-        catch (e) { notifyErr("mininote: " + msg(e)); this.setBusy(false); }
-      }));
+      bar.addButton((b) => {
+        b.setButtonText("Stop sharing").onClick(async () => {
+          if (this.busy) return;
+          this.setBusy(true);
+          try { await this.ctx.unshare(); notify("mininote: stopped sharing"); this.close(); }
+          catch (e) { notifyErr("mininote: " + msg(e)); this.setBusy(false); }
+        });
+        b.buttonEl.addClass("mod-warning"); // destructive styling without the version-gated setDestructive()
+      });
     }
 
     bar.addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()));

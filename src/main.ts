@@ -92,7 +92,7 @@ export default class MininotePlugin extends Plugin {
   private pendingTimer = 0; // clears an abandoned sign-in (browser closed / never returned)
   private statusEl: HTMLElement | null = null;
   private settingTab: MininoteSettingTab | null = null;
-  private editTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private editTimers = new Map<string, number>(); // window.setTimeout ids (numbers in the Obsidian runtime)
 
   async onload() {
     await this.loadSettings();
@@ -107,7 +107,7 @@ export default class MininotePlugin extends Plugin {
     this.addRibbonIcon(MINI_ICON, "mininote: your shares", () => void this.activateView());
     this.addRibbonIcon("share", "Share current note to mininote", () => {
       const file = this.app.workspace.getActiveFile();
-      if (file && file.extension === "md") this.openShareModal(file);
+      if (file && file.extension === "md") void this.openShareModal(file);
       else notify("mininote: open a markdown note first");
     });
 
@@ -117,15 +117,15 @@ export default class MininotePlugin extends Plugin {
     this.statusEl.onClickEvent(() => {
       if (!this.isConnected()) { void this.connect(); return; }
       const file = this.app.workspace.getActiveFile();
-      if (file && file.extension === "md") this.openShareModal(file);
+      if (file && file.extension === "md") void this.openShareModal(file);
     });
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.updateStatus()));
     this.registerEvent(this.app.workspace.on("file-open", () => this.updateStatus()));
     this.registerInterval(window.setInterval(() => this.updateStatus(), 60000)); // keep "synced Xm ago" fresh
 
     this.addCommand({
-      id: "mininote-connect",
-      name: "Connect to mininote",
+      id: "connect",
+      name: "Connect",
       checkCallback: (checking) => {
         if (this.isConnected()) return false; // only when NOT connected
         if (!checking) void this.connect();
@@ -133,18 +133,18 @@ export default class MininotePlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: "mininote-share",
-      name: "Share current note to mininote",
+      id: "share",
+      name: "Share current note",
       checkCallback: (checking) => {
         if (!this.isConnected()) return false;
         const file = this.app.workspace.getActiveFile();
         if (!file || file.extension !== "md") return false;
-        if (!checking) this.openShareModal(file);
+        if (!checking) void this.openShareModal(file);
         return true;
       },
     });
     this.addCommand({
-      id: "mininote-quick-share",
+      id: "quick-share",
       name: "Quick share current note (use defaults)",
       checkCallback: (checking) => {
         if (!this.isConnected()) return false;
@@ -155,7 +155,7 @@ export default class MininotePlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: "mininote-unshare",
+      id: "unshare",
       name: "Stop sharing current note",
       checkCallback: (checking) => {
         if (!this.isConnected()) return false;
@@ -166,8 +166,8 @@ export default class MininotePlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: "mininote-disconnect",
-      name: "Disconnect from mininote",
+      id: "disconnect",
+      name: "Disconnect",
       checkCallback: (checking) => {
         if (!this.isConnected()) return false; // only when connected
         if (!checking) void this.disconnect();
@@ -182,7 +182,7 @@ export default class MininotePlugin extends Plugin {
         menu.addItem((item) => {
           item.setTitle("mininote").setIcon("share");
           const sub = (item as MenuItemWithSubmenu).setSubmenu();
-          sub.addItem((i) => i.setTitle(shared ? "Update share" : "Share").setIcon("share").onClick(() => this.openShareModal(file)));
+          sub.addItem((i) => i.setTitle(shared ? "Update share" : "Share").setIcon("share").onClick(() => void this.openShareModal(file)));
           if (shared) sub.addItem((i) => i.setTitle("Stop sharing").setIcon("x").onClick(() => void this.unshare(file)));
         });
       } else if (file instanceof TFolder) {
@@ -199,7 +199,7 @@ export default class MininotePlugin extends Plugin {
     }));
     this.registerEvent(this.app.workspace.on("editor-menu", (menu, _editor, view) => {
       const file = view.file;
-      if (file && file.extension === "md") menu.addItem((i) => i.setTitle("Share to mininote").setIcon("share-2").onClick(() => this.openShareModal(file)));
+      if (file && file.extension === "md") menu.addItem((i) => i.setTitle("Share to mininote").setIcon("share-2").onClick(() => void this.openShareModal(file)));
     }));
 
     // One-way sync: keep mininote in step when a shared vault file is edited, moved, or deleted.
@@ -582,8 +582,8 @@ export default class MininotePlugin extends Plugin {
     if (!this.settings.syncEdits || !this.settings.tokens) return;
     if (!this.isSyncedPath(file.path)) return;
     const prev = this.editTimers.get(file.path);
-    if (prev) clearTimeout(prev);
-    this.editTimers.set(file.path, setTimeout(() => { this.editTimers.delete(file.path); void this.pushUpdate(file); }, 2000));
+    if (prev) window.clearTimeout(prev);
+    this.editTimers.set(file.path, window.setTimeout(() => { this.editTimers.delete(file.path); void this.pushUpdate(file); }, 2000));
   }
 
   // isSyncedPath: the note is shared directly, or lives under a shared FOLDER (folder records are
@@ -710,7 +710,7 @@ export default class MininotePlugin extends Plugin {
   }
   shareActive() {
     const f = this.app.workspace.getActiveFile();
-    if (f && f.extension === "md") this.openShareModal(f);
+    if (f && f.extension === "md") void this.openShareModal(f);
     else notify("mininote: open a markdown note first");
   }
 
@@ -725,7 +725,7 @@ export default class MininotePlugin extends Plugin {
 
   manageByPath(path: string) {
     const f = this.app.vault.getAbstractFileByPath(path);
-    if (f instanceof TFile) this.openShareModal(f);
+    if (f instanceof TFile) void this.openShareModal(f);
     else if (f instanceof TFolder) this.shareFolder(f);
     else notify("mininote: that item is no longer in the vault — use its Stop action to clean up");
   }
@@ -808,7 +808,7 @@ export default class MininotePlugin extends Plugin {
     ];
   }
 
-  onunload() { for (const t of this.editTimers.values()) clearTimeout(t); this.editTimers.clear(); this.clearPending(); clearToasts(); clearHovers(); }
+  onunload() { for (const t of this.editTimers.values()) window.clearTimeout(t); this.editTimers.clear(); this.clearPending(); clearToasts(); clearHovers(); }
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -857,7 +857,7 @@ class MininoteSettingTab extends PluginSettingTab {
       .addButton((b) => b.setButtonText(this.plugin.isConnected() ? "Reconnect" : "Connect").setCta().onClick(() => void this.plugin.connect()))
       .then((s) => {
         if (this.plugin.isConnected())
-          s.addButton((b) => b.setButtonText("Disconnect").setDestructive().onClick(() => void this.plugin.disconnect())); // disconnect() re-renders the tab
+          s.addButton((b) => { b.setButtonText("Disconnect").onClick(() => void this.plugin.disconnect()); b.buttonEl.addClass("mod-warning"); }); // mod-warning = destructive styling, no version-gated API
       });
 
     // Server URL + Client ID are dev-only knobs. Production builds bake the hosted defaults and hide

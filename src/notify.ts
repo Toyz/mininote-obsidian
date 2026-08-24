@@ -65,7 +65,7 @@ function render(msg: string, kind: "info" | "err", timeout: number, actions?: To
     el.onclick = dismiss;
   }
 
-  requestAnimationFrame(() => el.addClass("mn-toast-in")); // enter transition
+  window.requestAnimationFrame(() => el.addClass("mn-toast-in")); // enter transition
   timer = window.setTimeout(dismiss, timeout);
 }
 

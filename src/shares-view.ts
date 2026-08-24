@@ -117,8 +117,8 @@ export class SharesView extends ItemView {
       attachHoverCard(main, (card) => this.buildCard(card, path, rec, isFolder, notes));
 
       const acts = row.createDiv({ cls: "mn-sv-acts" });
-      this.act(acts, "copy", "Copy link", async () => {
-        await navigator.clipboard.writeText(this.host.shareUrlFor(rec)).catch(() => {});
+      this.act(acts, "copy", "Copy link", () => {
+        void navigator.clipboard.writeText(this.host.shareUrlFor(rec)).catch(() => {});
         notify("mininote: link copied");
       });
       this.act(acts, "external-link", "Open link", () => this.host.openLink(this.host.shareUrlFor(rec)));
@@ -191,10 +191,11 @@ export class SharesView extends ItemView {
     else bar.createSpan({ cls: "mn-hover-badge mn-hover-badge-plain", text: "Public · view only" });
   }
 
-  private cardRow(parent: HTMLElement, label: string, value: string, mono = false) {
-    const r = parent.createDiv({ cls: "mn-hover-row" });
-    r.createSpan({ cls: "mn-hover-label", text: label });
-    r.createSpan({ cls: "mn-hover-value" + (mono ? " mn-hover-mono" : ""), text: value });
+  // label + value are appended directly as the two columns of the .mn-hover-rows grid (no per-row
+  // wrapper — that would need display:contents, which Obsidian's CSS lint flags as partially supported).
+  private cardRow(grid: HTMLElement, label: string, value: string, mono = false) {
+    grid.createSpan({ cls: "mn-hover-label", text: label });
+    grid.createSpan({ cls: "mn-hover-value" + (mono ? " mn-hover-mono" : ""), text: value });
   }
 
   private rowMenu(path: string, rec: ShareRecord, isFolder: boolean, e: MouseEvent) {

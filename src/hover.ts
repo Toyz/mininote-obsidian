@@ -63,7 +63,7 @@ export function attachHoverCard(trigger: HTMLElement, build: (card: HTMLElement)
     card.addEventListener("mouseenter", () => window.clearTimeout(hideTimer));
     card.addEventListener("mouseleave", scheduleHide);
     document.addEventListener("mousedown", onDocDown, true);
-    requestAnimationFrame(() => card?.addClass("mn-hover-in"));
+    window.requestAnimationFrame(() => card?.addClass("mn-hover-in"));
   };
   const close = () => {
     if (!card) return;
