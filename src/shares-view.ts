@@ -105,16 +105,16 @@ export class SharesView extends ItemView {
         setIcon(icon, "file-text");
       }
 
-      // A note with no share token is a PRIVATE mirror (copied up, not published). Folders here are
-      // always shares. Private rows keep the sync state but drop the public-link actions.
-      const shared = isFolder || !!rec.token;
+      // No share token = a PRIVATE mirror (copied up, not published) — for a note OR a folder. Private
+      // rows keep the sync state but drop the public-link actions.
+      const shared = !!rec.token;
       const synced = rec.lastSyncedAt ? "synced " + relTime(rec.lastSyncedAt) : rec.updatedAt ? "updated " + relTime(rec.updatedAt) : "";
 
       const main = row.createDiv({ cls: "mn-sv-main" });
       main.createDiv({ cls: "mn-sv-name", text: nameOf(path) });
       const sub = main.createDiv({ cls: "mn-sv-sub mn-muted" });
       sub.setText(
-        isFolder ? plural(notes.length, "note")
+        isFolder ? plural(notes.length, "note") + (shared ? "" : " · Private")
           : shared ? (synced || "shared")
           : "Private · " + (synced || "not synced"),
       );
@@ -176,7 +176,7 @@ export class SharesView extends ItemView {
     setIcon(hi, isFolder ? "folder" : "file-text");
     head.createDiv({ cls: "mn-hover-title", text: nameOf(path) });
 
-    const shared = isFolder || !!rec.token;
+    const shared = !!rec.token;
     const rows = card.createDiv({ cls: "mn-hover-rows" });
     this.cardRow(rows, "Path", path);
     if (shared) this.cardRow(rows, "Link", this.host.shareUrlFor(rec), true);
@@ -209,7 +209,7 @@ export class SharesView extends ItemView {
   }
 
   private rowMenu(path: string, rec: ShareRecord, isFolder: boolean, e: MouseEvent) {
-    const shared = isFolder || !!rec.token;
+    const shared = !!rec.token;
     const menu = new Menu();
     if (shared) {
       const url = this.host.shareUrlFor(rec);

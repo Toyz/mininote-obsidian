@@ -78,7 +78,7 @@ Set defaults for all of the above (sharing options included) under **New share d
 - Connect
 - Share current note
 - Quick share current note (use defaults)
-- Push current note to mininote (private, no share)
+- Push current note (private, no share)
 - Stop sharing current note
 - Disconnect
 

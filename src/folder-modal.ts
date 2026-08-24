@@ -5,6 +5,7 @@ import type { PageSettings } from "./state";
 import { renderShareOptions, renderPageSettings, renderLinkCard, modalSection } from "./share-modal";
 
 export interface FolderPublishResult { ok: number; fail: number; total: number; url: string }
+export interface FolderPushResult { ok: number; fail: number; total: number }
 
 export interface FolderShareCtx {
   folderPath: string;
@@ -13,6 +14,7 @@ export interface FolderShareCtx {
   initial: ShareOptions;
   initialPage: PageSettings;
   publishAll: (opts: ShareOptions, page: PageSettings, onProgress: (done: number) => void) => Promise<FolderPublishResult>;
+  pushPrivate: (page: PageSettings, onProgress: (done: number) => void) => Promise<FolderPushResult>; // mirror every note, no share
   unshare: () => Promise<void>;
   openUrl: (url: string) => void;
 }
@@ -60,6 +62,22 @@ export class FolderShareModal extends Modal {
       });
     }
     bar.addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()));
+    bar.addButton((b) => b.setButtonText(`Push private ${this.ctx.count}`).onClick(async () => {
+      if (this.busy || this.ctx.count === 0) return;
+      this.busy = true;
+      contentEl.addClass("mn-busy");
+      const note = new Notice(`mininote: pushing 0/${this.ctx.count}…`, 0);
+      try {
+        const res = await this.ctx.pushPrivate(this.page, (done) => note.setMessage(`mininote: pushing ${done}/${this.ctx.count}…`));
+        note.hide();
+        this.showPrivateResult(res);
+      } catch (e) {
+        note.hide();
+        contentEl.removeClass("mn-busy");
+        this.busy = false;
+        notifyErr("mininote: " + ((e as { message?: string })?.message ?? "failed"));
+      }
+    }));
     bar.addButton((b) => b.setButtonText(this.ctx.existingUrl ? `Update ${this.ctx.count}` : `Publish ${this.ctx.count}`).setCta().onClick(async () => {
       if (this.busy || this.ctx.count === 0) return;
       this.busy = true;
@@ -96,6 +114,23 @@ export class FolderShareModal extends Modal {
     const bar = new Setting(contentEl);
     bar.settingEl.addClass("mn-buttons");
     bar.addButton((b) => b.setButtonText("Open").onClick(() => this.ctx.openUrl(res.url)));
+    bar.addButton((b) => b.setButtonText("Done").setCta().onClick(() => this.close()));
+  }
+
+  private showPrivateResult(res: FolderPushResult) {
+    const { contentEl, titleEl } = this;
+    contentEl.removeClass("mn-busy");
+    contentEl.empty();
+    titleEl.setText("Folder pushed (private)");
+
+    const hero = contentEl.createDiv({ cls: "mn-hero" });
+    setIcon(hero.createDiv({ cls: "mn-check" }), "check");
+    const t = hero.createDiv({ cls: "mn-hero-text" });
+    t.createDiv({ cls: "mn-hero-title", text: `${res.ok}/${res.total} notes` });
+    t.createDiv({ cls: "mn-hero-sub mn-muted", text: (res.fail ? `${res.fail} failed — the rest are ` : "All ") + "in your workspace, no public link." });
+
+    const bar = new Setting(contentEl);
+    bar.settingEl.addClass("mn-buttons");
     bar.addButton((b) => b.setButtonText("Done").setCta().onClick(() => this.close()));
   }
 

@@ -156,7 +156,7 @@ export default class MininotePlugin extends Plugin {
     });
     this.addCommand({
       id: "push-private",
-      name: "Push current note to mininote (private, no share)",
+      name: "Push current note (private, no share)",
       checkCallback: (checking) => {
         if (!this.isConnected()) return false;
         const file = this.app.workspace.getActiveFile();
@@ -203,10 +203,11 @@ export default class MininotePlugin extends Plugin {
       } else if (file instanceof TFolder) {
         const count = this.markdownFilesUnder(file).length;
         if (count === 0) return;
-        const shared = !!this.settings.shares[file.path];
+        const shared = !!this.settings.shares[file.path]?.token;
         menu.addItem((item) => {
           item.setTitle("mininote").setIcon("share");
           const sub = (item as MenuItemWithSubmenu).setSubmenu();
+          // The folder modal offers BOTH Publish (share) and Push (private); this opens it.
           sub.addItem((i) => i.setTitle(shared ? `Update folder share (${count})` : `Share folder (${count})`).setIcon("share").onClick(() => this.shareFolder(file)));
           if (shared) sub.addItem((i) => i.setTitle("Stop sharing folder").setIcon("x").onClick(() => void this.unshareFolder(file)));
         });
@@ -533,21 +534,21 @@ export default class MininotePlugin extends Plugin {
     new FolderShareModal(this.app, {
       folderPath: folder.path,
       count: files.length,
-      existingUrl: existing ? shareUrl(this.settings.base, existing.token, this.settings.handle, this.settings.appDomain) : null,
+      existingUrl: existing?.token ? shareUrl(this.settings.base, existing.token, this.settings.handle, this.settings.appDomain) : null,
       initial: existing?.options ?? { ...this.settings.defaultOptions },
       initialPage: existing?.pageSettings ?? { ...this.settings.defaultPage },
       unshare: () => this.unshareFolder(folder),
       openUrl: (url) => this.openExternal(url),
       publishAll: (opts, page, onProgress) => this.publishFolder(folder, opts, page, onProgress),
+      pushPrivate: (page, onProgress) => this.pushFolderPrivate(folder, page, onProgress),
     }).open();
   }
 
-  // publishFolder mirrors every note under a folder into mininote then shares the folder node (one
-  // link for the subtree). Reused by the folder modal AND force-resync. The page settings CASCADE:
-  // width/unlisted/comments are applied to every mirrored page (mininote doesn't cascade these itself),
-  // but only when they're non-default, so a plain share pays no extra writes.
-  private async publishFolder(folder: TFolder, opts: ShareOptions, page: PageSettings, onProgress?: (done: number) => void) {
-    if (!this.settings.handle) await this.refreshIdentity();
+  // mirrorFolderNotes upserts every note under a folder (+ tags + cascaded page config) and ensures the
+  // folder node exists — the shared building block behind BOTH the public folder share and the private
+  // folder mirror. The page settings cascade to every note (only when non-default, so a plain push pays
+  // no extra writes). Returns counts + the folder node id + its mininote path.
+  private async mirrorFolderNotes(folder: TFolder, page: PageSettings, onProgress?: (done: number) => void) {
     const files = this.markdownFilesUnder(folder);
     const cascade = page.width !== "" || page.unlisted;
     let ok = 0, fail = 0, done = 0;
@@ -563,12 +564,32 @@ export default class MininotePlugin extends Plugin {
     }
     const folderMirror = this.folderMirrorPath(folder);
     const folderNode = await this.mn.ensureFolder(folderMirror);
-    const { token, url } = await shareNode(this.mn, folderNode.id, opts, this.settings.base, this.settings.handle, this.settings.appDomain);
+    return { ok, fail, total: files.length, folderId: folderNode.id, folderMirror };
+  }
+
+  // publishFolder mirrors the subtree then SHARES the folder node (one public link). Reused by the
+  // folder modal + force-resync.
+  private async publishFolder(folder: TFolder, opts: ShareOptions, page: PageSettings, onProgress?: (done: number) => void) {
+    if (!this.settings.handle) await this.refreshIdentity();
+    const m = await this.mirrorFolderNotes(folder, page, onProgress);
+    const { token, url } = await shareNode(this.mn, m.folderId, opts, this.settings.base, this.settings.handle, this.settings.appDomain);
     const now = Date.now();
-    this.settings.shares[folder.path] = { pageId: folderNode.id, token, mininotePath: folderMirror, options: opts, pageSettings: page, lastSyncedAt: now, updatedAt: now };
+    this.settings.shares[folder.path] = { pageId: m.folderId, token, mininotePath: m.folderMirror, options: opts, pageSettings: page, lastSyncedAt: now, updatedAt: now };
     await this.saveSettings();
     this.updateStatus();
-    return { ok, fail, total: files.length, url };
+    return { ok: m.ok, fail: m.fail, total: m.total, url };
+  }
+
+  // pushFolderPrivate mirrors the subtree WITHOUT sharing — a private folder copy (token:""). Keeps an
+  // existing share if the folder was already public (so a resync of a shared folder doesn't drop it).
+  private async pushFolderPrivate(folder: TFolder, page: PageSettings, onProgress?: (done: number) => void) {
+    const existing = this.settings.shares[folder.path];
+    const m = await this.mirrorFolderNotes(folder, page, onProgress);
+    const now = Date.now();
+    this.settings.shares[folder.path] = { pageId: m.folderId, token: existing?.token ?? "", mininotePath: m.folderMirror, options: existing?.options ?? { ...this.settings.defaultOptions }, pageSettings: page, lastSyncedAt: now, updatedAt: now };
+    await this.saveSettings();
+    this.updateStatus();
+    return { ok: m.ok, fail: m.fail, total: m.total };
   }
 
   // forceResync re-publishes a share on demand (re-upsert body + tags, re-apply share options).
@@ -576,9 +597,14 @@ export default class MininotePlugin extends Plugin {
     const f = this.app.vault.getAbstractFileByPath(path);
     const rec = this.settings.shares[path];
     try {
-      if (f instanceof TFile && rec) { await this.doPublish(f, rec.options, rec.pageSettings ?? { ...DEFAULT_PAGE_SETTINGS }); notifyAction("mininote: resynced", this.linkActions(shareUrl(this.settings.base, rec.token, this.settings.handle, this.settings.appDomain))); }
-      else if (f instanceof TFolder && rec) { const r = await this.publishFolder(f, rec.options, rec.pageSettings ?? { ...DEFAULT_PAGE_SETTINGS }); notifyAction(`mininote: folder resynced (${r.ok}/${r.total})`, this.linkActions(r.url)); }
-      else if (f instanceof TFile) { await this.pushUpdate(f); notify("mininote: resynced"); } // folder-member note
+      // Resync must preserve the note's access: a private mirror re-pushes privately, a share re-shares.
+      if (f instanceof TFile && rec) {
+        if (rec.token) { await this.doPublish(f, rec.options, rec.pageSettings ?? { ...DEFAULT_PAGE_SETTINGS }); notifyAction("mininote: resynced", this.linkActions(shareUrl(this.settings.base, rec.token, this.settings.handle, this.settings.appDomain))); }
+        else { await this.pushPrivate(f); } // pushPrivate notifies
+      } else if (f instanceof TFolder && rec) {
+        if (rec.token) { const r = await this.publishFolder(f, rec.options, rec.pageSettings ?? { ...DEFAULT_PAGE_SETTINGS }); notifyAction(`mininote: folder resynced (${r.ok}/${r.total})`, this.linkActions(r.url)); }
+        else { const r = await this.pushFolderPrivate(f, rec.pageSettings ?? { ...DEFAULT_PAGE_SETTINGS }); notify(`mininote: folder synced (${r.ok}/${r.total})`); }
+      } else if (f instanceof TFile) { await this.pushUpdate(f); notify("mininote: resynced"); } // folder-member note
       else { notify("mininote: nothing to resync"); return; }
     } catch (e) {
       if (e instanceof ReauthNeeded) { notifyErr("mininote: " + e.message + " — run Connect"); return; }
